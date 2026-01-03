@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/karaoke.dir/src/main.cpp.o CMakeFiles/karaoke.dir/src/LyricsEngine.cpp.o -o karaoke  /usr/lib/x86_64-linux-gnu/libcurl.so 
