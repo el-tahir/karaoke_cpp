@@ -1,3 +1,0 @@
-/home/eltahir/karaoke_cpp/build/CMakeFiles/karaoke.dir
-/home/eltahir/karaoke_cpp/build/CMakeFiles/edit_cache.dir
-/home/eltahir/karaoke_cpp/build/CMakeFiles/rebuild_cache.dir
