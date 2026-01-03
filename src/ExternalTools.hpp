@@ -4,6 +4,13 @@
 #include <filesystem>
 #include <optional>
 
+struct VideoMetadata {
+    std::string title;
+    std::string artist; // we try and guess this from the title
+};
+
+
+
 struct Paths {
         std::filesystem::path separator_binary = "./separator";
         std::filesystem::path temp_dir = "temp";
@@ -19,15 +26,18 @@ public:
         std::filesystem::create_directories(paths_.output_dir);
     }
 
-    // 1. downlaod audio via yt-dlp (returns path to downloaded .wav)
+    // 1. get title/artist from youtube url
+    std::optional<VideoMetadata> get_youtube_metadata(const std::string& url);
+
+    // 2. downlaod audio via yt-dlp (returns path to downloaded .wav)
 
     std::optional<std::filesystem::path> download_audio(const std::string& url);
 
 
-    // 2. run custom separator (returns path to intrumental .wav)
+    // 3. run custom separator (returns path to intrumental .wav)
     std::optional<std::filesystem::path> run_separator(const std::filesystem::path& input_wav);
 
-    // 3. render final video via ffmpeg
+    // 4. render final video via ffmpeg
 
     bool render_video(const std::filesystem::path& audio_path,
                       const std::filesystem::path& ass_path, 
@@ -38,8 +48,6 @@ private:
 
     bool execute_command(const std::string& cmd);
 
-
-    // remove weird characters
-    std::string sanitize_filename(const std::string& name);
+    std::string run_command_with_output(const std::string& cmd);
 
 };
