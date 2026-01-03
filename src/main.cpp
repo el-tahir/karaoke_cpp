@@ -1,43 +1,48 @@
 #include <iostream>
-#include <filesystem>
+#include <ExternalTools.hpp>
 #include <LyricsEngine.hpp>
 
 int main() {
-    std::cout << "--- subtitle generator test ---" << std::endl;
 
-    LyricsFetcher fetcher;
+    std::cout << "--- pipeline component test ---" << std::endl;
+
+    ExternalTools tools;
+
+    // 1. test download
+
+    std::cout << "\n[step 1] downloading audio..." << std::endl;
+
+    auto audio_path = tools.download_audio("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+
+    if (!audio_path) return 1;
+    std::cout << "[success] downloaded to: " << audio_path->string() << std::endl;
+
+    // 2. skip separator for now
+
+    std::cout << "\n [step 2] skipping separator..." << std::endl;
+    auto instrumental_path = *audio_path;
+
+    // 3. dummy subtitles
+    std::cout << "\n [step 3] generating subtitles..." << std::endl;
     AssConverter converter;
+    std::vector<LyricLine> lines;
 
-    std::string artist = "Adele";
-    std::string title  = "Hello";
-
-    // 1. fetch
-
-    auto lrc_opt = fetcher.fetch_lyrics(artist, title);
-
-    if (!lrc_opt) {
-        std::cerr << "[error] failed to fetch lyrics" << std::endl;
-        return 1;
-    }
-
-    std::cout << "[success] fetched lyrics" << std::endl;
-
-    // 2. parse
-
-    auto lines = converter.parse_lrc(*lrc_opt);
-
-    std::cout << "[success] parsed" << lines.size() << " lines" << std::endl;
-
-    // 3. generate ass
+    LyricLine l1; l1.start_time = 0.0; l1.end_time = 5.0; l1.text = "Never gonna give you up";
+    LyricLine l2; l2.start_time = 5.0; l2.end_time = 10.0; l2.text = "Never gonna let you down";
+    lines.push_back(l1);
+    lines.push_back(l2);
 
     std::string ass_content = converter.generate_ass(lines);
-    std::cout << "[success] generated ass content." << std::endl;
+    std::filesystem::path ass_path = "temp/test.ass";
+    converter.save_to_file(ass_content, ass_path);
 
-    // 4. save
-    std::filesystem::path out_path = "adele_hello.ass";
-
-    converter.save_to_file(ass_content, out_path);
-    std::cout << "[success] saved to " << out_path << std::endl; 
+    std::cout << "\n rendering video..." << std::endl;
+    
+    if (tools.render_video(instrumental_path, ass_path, "rick_test.mp4")) {
+        std::cout << "[success] pipeline finished" << std::endl;
+    } else {
+        std::cerr << "[error] rendering failed" << std::endl;
+    }
 
     return 0;
 }

@@ -11,6 +11,7 @@ include_directories(src)
 add_executable(karaoke
     src/main.cpp
     src/LyricsEngine.cpp
+    src/ExternalTools.cpp
 )
 
 target_link_libraries(karaoke
