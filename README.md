@@ -9,6 +9,35 @@ A C++ tool that generates karaoke videos from YouTube links or search terms.
 3. Fetches synced lyrics automatically
 4. Renders karaoke-style videos with subtitles
 
+## Workflow
+
+```
+YouTube URL/Search
+        │
+        ▼
+┌───────────────┐
+│   yt-dlp      │ ─── Download audio
+└───────────────┘
+        │
+        ▼
+┌───────────────┐
+│   separator   │ ─── Remove vocals (MDX-Net)
+└───────────────┘
+        │
+        ▼
+┌───────────────┐
+│  LRCLIB API   │ ─── Fetch synced lyrics
+└───────────────┘
+        │
+        ▼
+┌───────────────┐
+│    ffmpeg     │ ─── Render video with subtitles
+└───────────────┘
+        │
+        ▼
+   output/*.mp4
+```
+
 ## Requirements
 
 - CMake 3.10+
