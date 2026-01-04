@@ -46,34 +46,73 @@ bool ExternalTools::execute_command(const std::string& cmd) {
 std::optional<VideoMetadata> ExternalTools::get_youtube_metadata(const std::string& url) {
     // ask yt-dlp for the full title
     std::stringstream cmd;
-    cmd << "yt-dlp --print title \"" << url << "\"";
-    std::string full_title = run_command_with_output(cmd.str());
+    cmd << "yt-dlp --print \"%(artist)s\" --print \"%(track)s\" --print \"%(title)s\" "
+        << "\"" << url << "\"";
+    
 
-    if (full_title.empty()) return std::nullopt;
+    std::string output = run_command_with_output(cmd.str());
+
+    if (output.empty()) return std::nullopt;
+
+    //split output by newlines into a vector
+    std::vector<std::string> lines;
+    std::stringstream ss(output);
+    std::string line;
+
+    while (std::getline(ss, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back(); // handle windows formatting
+        lines.push_back(line);
+    }
+
+    std::string meta_artist = (lines.size() > 0) ? lines[0] : "";
+    std::string meta_track =  (lines.size() > 1) ? lines[1] : "";
+    std::string full_title =  (lines.size() > 2) ? lines[2] : "";
 
     VideoMetadata meta;
 
-    // try to split by " - "
-    
-    std::regex split_regex("^(.*?) - (.*)$");
-    std::smatch match;
+    // trust the youtube music metadata
+    // yt-dlp returns "NA" if the field is missing
 
-    if (std::regex_search(full_title, match, split_regex)) {
-        meta.artist = match[1].str();
-        meta.title = match[2].str();
-    } else {
-        // fallback: use the whole thing as title
-        meta.artist = "";
-        meta.title = full_title;
+    if (!meta_artist.empty() && meta_artist != "NA" && !meta_track.empty() && meta_track != "NA") {
+        meta.artist = meta_artist;
+        meta.title = meta_track;
+        std::cout << "[metadata] used structured data: " << meta.artist << " - " << meta.title << std::endl;
+
+    }
+    
+    else {
+        std::cout << "[metadata] structured data missing. falling back to title parse." << std::endl;
+        
+        std::string target_title = full_title.empty() ? meta_artist : full_title;
+
+        std::regex split_regex("^(.*?) - (.*)$");
+        std::smatch match;
+
+        if (std::regex_search(target_title, match, split_regex)) {
+            meta.artist = match[1].str();
+            meta.title = match[2].str();
+        } else {
+            meta.artist = "";
+            meta.title = target_title;
+        }
     }
 
-    // clean up "official audio", "(audio)", etc..
-    std::regex cleanup_regex(R"(\s*[\(\[](Official|Video|Audio|Lyrics|HD|4K).*[\)\]])", std::regex::icase);
+    // clean up
+
+    std::regex cleanup_regex(R"(\s*[\(\[](Official|Video|Audio|Lyrics|HD|4K|Remaster).*[\)\]])", std::regex::icase);
     meta.title = std::regex_replace(meta.title, cleanup_regex, "");
 
+    // trim whitespace
+
+    auto trim = [](std::string& s) {
+        s.erase(0, s.find_first_not_of(" \t\n\r"));
+        s.erase(s.find_last_not_of(" \t\n\r") + 1);
+    };
+
+    trim(meta.artist);
+    trim(meta.title);
+
     return meta;
-
-
 }
 
 
