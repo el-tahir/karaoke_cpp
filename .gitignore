@@ -1,6 +1,15 @@
 # Build directory
 build/
 
+# models directory
+models/
+
+# artifacts directory
+artifacts/
+
+# outputs directory
+output/
+
 # CMake generated files
 CMakeCache.txt
 CMakeFiles/

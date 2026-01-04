@@ -4,6 +4,19 @@
 #include <ExternalTools.hpp>
 #include <LyricsEngine.hpp>
 
+namespace fs = std::filesystem;
+
+std::string sanitize_filename(std::string name) {
+    std::string invalid_chars = "\\/:?\"<>|";
+    for (char& c : name) {
+        if (invalid_chars.find(c) != std::string::npos) {
+            c = '_';
+        }
+    }
+
+    return name;
+}
+
 int main(int argc, char* argv[]) {
 
     if (argc < 2) {
@@ -25,6 +38,21 @@ int main(int argc, char* argv[]) {
     LyricsFetcher lyrics_fetcher;
     AssConverter ass_converter;
 
+    // create hash of input string to use as folder name
+    size_t input_hash = std::hash<std::string>{}(input);
+    std::string project_id = std::to_string(input_hash);
+
+    fs::path project_dir = fs::path("artifacts") / project_id;
+    fs::create_directories(project_dir);
+
+    fs::path p_source_wav =       project_dir / "source.wav";
+    fs::path p_instrumental_wav = project_dir / "instrumental.wav";
+    fs::path p_subtitles_ass =    project_dir / "karaoke.ass";
+
+    std::cout << "project id: " << project_id << std::endl;
+    std::cout << "artificats: " << project_dir << std::endl;
+
+
     // 1. get metadata
     std::cout << "\n [1/5] fetching metadata..." << std::endl;
 
@@ -45,7 +73,7 @@ int main(int argc, char* argv[]) {
 
     // 2. download audio
     std::cout << "\n[2/5] downloading audio..." << std::endl;
-    auto audio_path = tools.download_audio(input);
+    auto audio_path = tools.download_audio(input, p_source_wav);
     if (!audio_path) return 1;
 
     // 3. separate audio 
@@ -55,7 +83,7 @@ int main(int argc, char* argv[]) {
 
     // check if separator binary exists
     if (std::filesystem::exists("./separator")) {
-        auto separated_path = tools.run_separator(*audio_path);
+        auto separated_path = tools.run_separator(*audio_path, p_instrumental_wav);
         if (separated_path) {
             final_audio_path = *separated_path;
             std::cout << " separation complete" << std::endl;
@@ -87,23 +115,24 @@ int main(int argc, char* argv[]) {
     auto lines = ass_converter.parse_lrc(*lrc_opt);
 
     std::string ass_content = ass_converter.generate_ass(lines);
-    std::filesystem::path ass_path = "temp/karaoke.ass";
-    ass_converter.save_to_file(ass_content, ass_path);
+    ass_converter.save_to_file(ass_content, p_subtitles_ass);
 
-    // 5. render video
-    std::cout << "\n[5/5] rendering final video..." << std::endl;
-    std::string output_filename = "karaoke_" + std::to_string(std::time(nullptr)) + ".mp4";
+    // 5. render videos
+    std::string safe_title = sanitize_filename(meta.title);
+    if (!meta.artist.empty()) safe_title = sanitize_filename(meta.artist) + " - " + safe_title;
 
-    if (tools.render_video(final_audio_path, ass_path, output_filename)) {
-        std::cout << "\n-----done!-----" << std::endl;
-        std::cout << "file saved to output/" << output_filename << std::endl;
+    fs::path output_dir = "output";
+    fs::create_directories(output_dir);
 
-    } else {
-        std::cerr << "rendering failed" << std::endl;
-        return 1;
-    }
+    // video 1: instrumental
+    fs::path out_vid_inst = output_dir / (safe_title + " (instrumental).mp4");
+    std::cout << "rendering instrumental video..." << std::endl;
+    tools.render_video(final_audio_path, p_subtitles_ass, out_vid_inst);
 
-
+    // video 2 : original audio
+    fs::path out_vid_orig = output_dir / (safe_title + " (original).mp4");
+    std::cout << "rendering original video..." << std::endl;
+    tools.render_video(p_source_wav, p_subtitles_ass, out_vid_orig);
 
     return 0;
 }

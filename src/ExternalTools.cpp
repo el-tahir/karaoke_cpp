@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 // helper : run command and capture output
 
 std::string ExternalTools::run_command_with_output(const std::string& cmd) {
-    std::array<char, 128> buffer;
+    std::array<char, 4096> buffer;
     std::string result;
 
     // open pipe to command
@@ -78,37 +78,46 @@ std::optional<VideoMetadata> ExternalTools::get_youtube_metadata(const std::stri
 
 
 
-std::optional<fs::path> ExternalTools::download_audio(const std::string& url) {
-    // target temp/downloaded.wav
+std::optional<fs::path> ExternalTools::download_audio(const std::string& url, const fs::path& out_path) {
+    // cache check
+    if (fs::exists(out_path)) {
+        std::cout << "[cache hit] audio already downloaded." << std::endl;
+        return out_path;
+    }
 
-    fs::path output_path = paths_.temp_dir / "downloaded.wav";
+    // ensure parent directory exists
+    fs::create_directories(out_path.parent_path());
 
+
+    // clean up wav file for parser
     std::stringstream cmd;
-
     cmd << "yt-dlp -x --audio-format wav "
-        << "--output \"" << output_path.string() << "\" "
+        << "--postprocessor-args \"ffmpeg:-map_metadata -1 -fflags +bitexact -acodec pcm_s16le -ar 44100 -ac 2\" "
+        << "--output \"" << out_path.string() << "\" "
         << "\"" << url << "\"";
 
     if (execute_command(cmd.str())) {
-        if (fs::exists(output_path)) return output_path;
+        if (fs::exists(out_path)) return out_path;
     }
 
     std::cerr << "[error] yt-dlp failed to download audio" << std::endl;
     return std::nullopt;
 }
 
-std::optional<fs::path> ExternalTools::run_separator(const fs::path& input_wav) {
-    // usage ./separator <input.wav> <output.wav>
-    fs::path output_instrumental = paths_.temp_dir / "instrumental.wav";
+std::optional<fs::path> ExternalTools::run_separator(const fs::path& input_wav, const fs::path& out_path) {
+    if (fs::exists(out_path)) {
+        std::cout << "[cache hit] vocals already separated." << std::endl;
+        return out_path;
+    }
 
     std::stringstream cmd;
     cmd << paths_.separator_binary.string() << " "
         << "\"" << input_wav.string() << "\" "
-        << "\"" << output_instrumental.string() << "\"";
+        << "\"" << out_path.string() << "\"";
     
     
     if (execute_command(cmd.str())) {
-        if (fs::exists(output_instrumental)) return output_instrumental;
+        if (fs::exists(out_path)) return out_path;
     }
 
     std::cerr << "[error] custom separator failed" << std:: endl;
@@ -117,9 +126,10 @@ std::optional<fs::path> ExternalTools::run_separator(const fs::path& input_wav) 
 
 bool ExternalTools::render_video(const fs::path& audio_path,
                                 const fs::path& ass_path,
-                                const std::string& output_filename) {
-    
-    fs::path output_path = paths_.output_dir / output_filename;
+                                const fs::path& out_path) {
+
+    // ensure parent directory exsists
+    fs::create_directories(out_path.parent_path());
 
     // ffmpeg command to combine audio + ass subtitles + black background
     std::stringstream cmd;
@@ -129,10 +139,9 @@ bool ExternalTools::render_video(const fs::path& audio_path,
         << "-vf \"ass=" << ass_path.string() << "\" "    // subtitle filter
         << "-shortest "                                  // stop when audio ends
         << "-c:v libx264 -c:a aac -b:a 192k "
-        << "\"" << output_path.string() << "\"";
+        << "\"" << out_path.string() << "\"";
 
     return execute_command(cmd.str());
-
 
 }
 

@@ -9,8 +9,6 @@ struct VideoMetadata {
     std::string artist; // we try and guess this from the title
 };
 
-
-
 struct Paths {
         std::filesystem::path separator_binary = "./separator";
         std::filesystem::path temp_dir = "temp";
@@ -31,17 +29,17 @@ public:
 
     // 2. downlaod audio via yt-dlp (returns path to downloaded .wav)
 
-    std::optional<std::filesystem::path> download_audio(const std::string& url);
+    std::optional<std::filesystem::path> download_audio(const std::string& url, const std::filesystem::path& out_path);
 
 
     // 3. run custom separator (returns path to intrumental .wav)
-    std::optional<std::filesystem::path> run_separator(const std::filesystem::path& input_wav);
+    std::optional<std::filesystem::path> run_separator(const std::filesystem::path& input_wav, const std::filesystem::path& out_path);
 
     // 4. render final video via ffmpeg
 
     bool render_video(const std::filesystem::path& audio_path,
                       const std::filesystem::path& ass_path, 
-                      const std::string& output_filename);
+                      const std::filesystem::path& out_path);
 
 private:
     Paths paths_;
